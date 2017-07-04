@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 from setuptools import setup
 
@@ -7,6 +7,6 @@ if __name__ == '__main__':
         name='bvh',
         description='Biviosion Hierarchy data loading and rendering',
         author='Matt Graham',
-        url='https://github.com/matt-graham/bvh-tools',
+        url='https://github.com/vladimirdlc/bvh-tools',
         packages=['bvh']
     )
