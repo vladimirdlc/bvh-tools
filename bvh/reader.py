@@ -91,7 +91,7 @@ class BvhReader(object):
 
     def read(self):
         """Read the entire file."""
-        with file(self.filename, 'r') as self._file_handle:
+        with open(self.filename, 'r') as self._file_handle:
             self.read_hierarchy()
             self.on_hierarchy(self.root)
             self.read_motion()
@@ -141,7 +141,7 @@ class BvhReader(object):
                                   "expected, got %d instead"
                                   % (self._line_num, self.num_channels,
                                      len(a)))
-            values = map(lambda x: float(x), a)
+            values = [float(x) for x in a]
             self.on_frame(values)
 
     def read_hierarchy(self):
