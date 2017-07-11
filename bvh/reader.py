@@ -41,6 +41,7 @@
 ## Contains the BVHReader class.
 
 import string
+from collections import deque
 
 
 class Node(object):
@@ -50,6 +51,8 @@ class Node(object):
         self.name = None
         self.channels = []
         self.offset = (0, 0, 0)
+        self.position = []
+        self.rotation = []
         self.children = []
         self._is_root = root
 
@@ -79,15 +82,28 @@ class BvhReader(object):
 
         # Total number of channels
         self.num_channels = 0
+        
+        # Total number of frames
+        self.nFrames = 0
+        
+        # Frame Time
+        self.frameTime = 0
 
     def on_hierarchy(self, root):
         pass
 
     def on_motion(self, frames, dt):
-        pass
+        self.nFrames = frames
+        self.frameTime = dt
 
-    def on_frame(self, values):
-        pass
+    def on_frame(self, frame, values, node):
+            if len(node.channels) > 3:
+                node.position.append((values.popleft(), values.popleft(), values.popleft()))
+            node.rotation.append((values.popleft(), values.popleft(), values.popleft()))
+
+            for child in node.children:
+                if len(child.channels) > 0:
+                    self.on_frame(frame, values, child)
 
     def read(self):
         """Read the entire file."""
@@ -106,13 +122,13 @@ class BvhReader(object):
 
         if tok != "MOTION":
             raise SyntaxError("Syntax error in line %d: 'MOTION' expected, "
-                              "got '%s' instead" % (self._line_num, tok))
+                            "got '%s' instead" % (self._line_num, tok))
 
         # Read the number of frames
         tok = self.token()
         if tok != "Frames:":
             raise SyntaxError("Syntax error in line %d: 'Frames:' expected, "
-                              "got '%s' instead" % (self._line_num, tok))
+                            "got '%s' instead" % (self._line_num, tok))
 
         frames = self.int_token()
 
@@ -120,13 +136,13 @@ class BvhReader(object):
         tok = self.token()
         if tok != "Frame":
             raise SyntaxError("Syntax error in line %d: 'Frame Time:' "
-                              "expected, got '%s' instead"
-                              % (self._line_num, tok))
+                            "expected, got '%s' instead"
+                            % (self._line_num, tok))
         tok = self.token()
         if tok != "Time:":
             raise SyntaxError("Syntax error in line %d: 'Frame Time:' "
-                              "expected, got 'Frame %s' instead"
-                              % (self._line_num, tok))
+                            "expected, got 'Frame %s' instead"
+                            % (self._line_num, tok))
 
         dt = self.float_token()
 
@@ -138,22 +154,22 @@ class BvhReader(object):
             a = s.split()
             if len(a) != self.num_channels:
                 raise SyntaxError("Syntax error in line %d: %d float values "
-                                  "expected, got %d instead"
-                                  % (self._line_num, self.num_channels,
-                                     len(a)))
-            values = [float(x) for x in a]
-            self.on_frame(values)
+                                "expected, got %d instead"
+                                % (self._line_num, self.num_channels,
+                                    len(a)))
+            values = deque([float(x) for x in a])
+            self.on_frame(i, values, self.root)
 
     def read_hierarchy(self):
         """Read the skeleton hierarchy."""
         tok = self.token()
         if tok != "HIERARCHY":
             raise SyntaxError("Syntax error in line %d: 'HIERARCHY' expected, "
-                              "got '%s' instead" % (self._line_num, tok))
+                            "got '%s' instead" % (self._line_num, tok))
         tok = self.token()
         if tok != "ROOT":
             raise SyntaxError("Syntax error in line %d: 'ROOT' expected, "
-                              "got '%s' instead" % (self._line_num, tok))
+                            "got '%s' instead" % (self._line_num, tok))
 
         self.root = Node(root=True)
         self._node_stack.append(self.root)
@@ -169,7 +185,7 @@ class BvhReader(object):
         tok = self.token()
         if tok != "{":
             raise SyntaxError("Syntax error in line %d: '{' expected, "
-                              "got '%s' instead" % (self._line_num, tok))
+                            "got '%s' instead" % (self._line_num, tok))
 
         while 1:
             tok = self.token()
@@ -184,10 +200,10 @@ class BvhReader(object):
                 for i in range(n):
                     tok = self.token()
                     if tok not in ["Xposition", "Yposition", "Zposition",
-                                   "Xrotation", "Yrotation", "Zrotation"]:
+                                "Xrotation", "Yrotation", "Zrotation"]:
                         raise SyntaxError("Syntax error in line %d: Invalid "
-                                          "channel name: '%s'"
-                                          % (self._line_num, tok))
+                                        "channel name: '%s'"
+                                        % (self._line_num, tok))
                     channels.append(tok)
                 self.num_channels += len(channels)
                 self._node_stack[-1].channels = channels
@@ -208,7 +224,7 @@ class BvhReader(object):
                 break
             else:
                 raise SyntaxError("Syntax error in line %d: Unknown "
-                                  "keyword '%s'" % (self._line_num, tok))
+                                "keyword '%s'" % (self._line_num, tok))
 
     def int_token(self):
         """Return the next token which must be an int. """
@@ -217,7 +233,7 @@ class BvhReader(object):
             return int(tok)
         except ValueError:
             raise SyntaxError("Syntax error in line %d: Integer expected, "
-                              "got '%s' instead" % (self._line_num, tok))
+                            "got '%s' instead" % (self._line_num, tok))
 
     def float_token(self):
         """Return the next token which must be a float."""
@@ -226,7 +242,7 @@ class BvhReader(object):
             return float(tok)
         except ValueError:
             raise SyntaxError("Syntax error in line %d: Float expected, "
-                              "got '%s' instead" % (self._line_num, tok))
+                            "got '%s' instead" % (self._line_num, tok))
 
     def token(self):
         """Return the next token."""
